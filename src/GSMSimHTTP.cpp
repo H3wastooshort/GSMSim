@@ -39,85 +39,92 @@
 #include "GSMSimHTTP.h"
 #include "GSMSimGPRS.h"
 
+String GSMSimHTTP::get_complete(bool read = false, bool https = false) {
+	gsm.print("\"\r");
+	_readSerial();
+	if (_buffer.indexOf(F("OK")) == -1) return "HTTP_PARAMETER_ERROR";
+	
+	if (https) {
+		gsm.print(F("AT+HTTPPARA=\"REDIR\",1\r"));
+		_readSerial();
+		if (_buffer.indexOf(F("OK")) == -1) return "HTTP_PARAMETER_ERROR";
 
-//the C++ compiler will select the right function, depending on wether the 2nd argument is a String or a callback function
-void GSMSimHTTP::handle_url(Stream& s, String url) {
-    s.print(url);
-}
-void GSMSimHTTP::handle_url(Stream& s, GSMSimHTTP_URL_callback callback_function) {
-    callback_function(s);
+		gsm.print(F("AT+HTTPSSL=1\r"));
+		_readSerial();
+		if (_buffer.indexOf(F("OK")) == -1) return "HTTP_SSL_ERROR";
+	}
+	
+	gsm.print(F("AT+HTTPACTION=0\r"));
+	_readSerial();
+	if (_buffer.indexOf(F("OK")) == -1) return "HTTP_ACTION_ERROR";
+	
+	_readSerial(30000);
+	if (_buffer.indexOf(F("+HTTPACTION: 0,")) == -1) return "HTTP_ACTION_READ_ERROR";
+	
+	String kod = _buffer.substring(_buffer.indexOf(F(","))+1, _buffer.lastIndexOf(F(",")));
+	String uzunluk = _buffer.substring(_buffer.lastIndexOf(F(","))+1);
+	kod.trim();
+	uzunluk.trim();
+	
+	String sonuc = "METHOD:GET|HTTPCODE:";
+	sonuc += kod;
+	sonuc += "|LENGTH:";
+	sonuc += uzunluk;
+
+	if (read) {
+		gsm.print(F("AT+HTTPREAD\r"));
+		_readSerial(10000);
+
+		String okuma = "";
+
+		if (_buffer.indexOf(F("+HTTPREAD:")) != -1) {
+			String kriter = "+HTTPREAD: " + uzunluk;
+			String veri = _buffer.substring(_buffer.indexOf(kriter) + kriter.length(), _buffer.lastIndexOf(F("OK")));
+			okuma = veri;
+		}
+		else {
+			okuma = "ERROR:HTTP_READ_ERROR";
+		}
+
+		sonuc += "|DATA:";
+		okuma.trim();
+		sonuc += okuma;
+	}
+
+	// Bağlantıyı kapat!
+	gsm.print(F("AT+HTTPTERM\r"));
+	_readSerial();
+
+	sonuc.trim();
+
+	return sonuc;
 }
 
 
 // HTTP Get Method - No return web server response
-template <typename URL_T> String GSMSimHTTP::get(URL_T url) {
+String GSMSimHTTP::get(String url) {
 
-	if (isConnected()) {
-		// Terminate http connection, if it opened before! Otherwise method not run correctly.
-		gsm.print(F("AT+HTTPTERM\r"));
-		_readSerial();
+	if (!isConnected()) return "GPRS_NOT_CONNECTED";
+	// Terminate http connection, if it opened before! Otherwise method not run correctly.
+	gsm.print(F("AT+HTTPTERM\r"));
+	_readSerial();
 
-		gsm.print(F("AT+HTTPINIT\r"));
-		_readSerial();
-		if (_buffer.indexOf(F("OK")) != -1) {
-			gsm.print(F("AT+HTTPPARA=\"CID\",1\r"));
-			_readSerial();
-			if (_buffer.indexOf(F("OK")) != -1) {
-				gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-				
-				gsm.print("\"\r");
-				_readSerial();
+	gsm.print(F("AT+HTTPINIT\r"));
+	_readSerial();
 
-				if (_buffer.indexOf(F("OK")) != -1) {
-					gsm.print(F("AT+HTTPACTION=0\r"));
-					_readSerial();
-					if (_buffer.indexOf(F("OK")) != -1) {
-						_readSerial(10000);
-						if (_buffer.indexOf(F("+HTTPACTION: 0,")) != -1) {
-							String kod = _buffer.substring(_buffer.indexOf(F(","))+1, _buffer.lastIndexOf(F(",")));
-							String uzunluk = _buffer.substring(_buffer.lastIndexOf(F(","))+1);
-							handle_url(gsm, url);
-							String sonuc = "METHOD:GET|HTTPCODE:";
-							sonuc += kod;
-							sonuc += "|LENGTH:";
-							sonuc += uzunluk;
+	if (_buffer.indexOf(F("OK")) != -1) return "HTTP_INIT_ERROR";
+	gsm.print(F("AT+HTTPPARA=\"CID\",1\r"));
+	_readSerial();
 
-							// Bağlantıyı kapat!
-							gsm.print(F("AT+HTTPTERM\r"));
-							_readSerial();
+	if (_buffer.indexOf(F("OK")) == -1) return "HTTP_PARAMETER_ERROR";
+	gsm.print(F("AT+HTTPPARA=\"URL\",\""));
 
-							sonuc.trim();
+	gsm.print(url);
+	return get_complete();
 
-							return sonuc;
-						}
-						else {
-							return "HTTP_ACTION_READ_ERROR";
-						}
-					}
-					else {
-						return "HTTP_ACTION_ERROR";
-					}
-				}
-				else {
-					return "HTTP_PARAMETER_ERROR";
-				}
-
-			}
-			else {
-				return "HTTP_PARAMETER_ERROR";
-			}
-		}
-		else {
-			return "HTTP_INIT_ERROR";
-		}
-	}
-	else {
-		return "GPRS_NOT_CONNECTED";
-	}
 }
-
 // HTTP Get Method - Return web server response
-template <typename URL_T>  String GSMSimHTTP::get(URL_T url, bool read) {
+String GSMSimHTTP::get(String url, bool read) {
 	if(read) {
 		if (isConnected()) {
 			// Terminate http connection, if it opened before!
@@ -131,61 +138,8 @@ template <typename URL_T>  String GSMSimHTTP::get(URL_T url, bool read) {
 				_readSerial();
 				if (_buffer.indexOf(F("OK")) != -1) {
 					gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-					handle_url(gsm, url);
-					gsm.print(F("\"\r"));
-					_readSerial();
-					if (_buffer.indexOf(F("OK")) != -1) {
-						gsm.print(F("AT+HTTPACTION=0\r"));
-						_readSerial();
-						if (_buffer.indexOf(F("OK")) != -1) {
-							_readSerial(10000);
-							if (_buffer.indexOf(F("+HTTPACTION: 0,")) != -1) {
-								String kod = _buffer.substring(_buffer.indexOf(F(",")) + 1, _buffer.lastIndexOf(F(",")));
-								String uzunluk = _buffer.substring(_buffer.lastIndexOf(F(",")) + 1);
-								kod.trim();
-								uzunluk.trim();
-
-								gsm.print(F("AT+HTTPREAD\r"));
-								_readSerial(10000);
-
-								String okuma = "";
-
-								if (_buffer.indexOf(F("+HTTPREAD:")) != -1) {
-									String kriter = "+HTTPREAD: " + uzunluk;
-									String veri = _buffer.substring(_buffer.indexOf(kriter) + kriter.length(), _buffer.lastIndexOf(F("OK")));
-									okuma = veri;
-								}
-								else {
-									return "ERROR:HTTP_READ_ERROR";
-								}
-
-								String sonuc = "METHOD:GET|HTTPCODE:";
-								sonuc += kod;
-								sonuc += "|LENGTH:";
-								sonuc += uzunluk;
-								sonuc += "|DATA:";
-								okuma.trim();
-								sonuc += okuma;
-
-								gsm.print(F("AT+HTTPTERM\r"));
-								_readSerial();
-
-								sonuc.trim();
-
-								return sonuc;
-							}
-							else {
-								return "ERROR:HTTP_ACTION_READ_ERROR";
-							}
-						}
-						else {
-							return "ERROR:HTTP_ACTION_ERROR";
-						}
-					}
-					else {
-						return "ERROR:HTTP_PARAMETER_ERROR";
-					}
-
+					gsm.print(url);
+					return get_complete(true);
 				}
 				else {
 					return "ERROR:HTTP_PARAMETER_ERROR";
@@ -202,9 +156,8 @@ template <typename URL_T>  String GSMSimHTTP::get(URL_T url, bool read) {
 		get(url);
 	}	
 }
-
 // HTTP Get Method with SSL - No return web server response
-template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url) {
+String GSMSimHTTP::getWithSSL(String url) {
 	if (isConnected()) {
 		// Terminate http connection, if it opened before! Otherwise method not run correctly.
 		gsm.print(F("AT+HTTPTERM\r"));
@@ -217,64 +170,10 @@ template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url) {
 			_readSerial();
 			if (_buffer.indexOf(F("OK")) != -1) {
 				gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-				handle_url(gsm, url);
-				gsm.print("\"\r");
-				_readSerial();
-				if (_buffer.indexOf(F("OK")) != -1) {
-					gsm.print(F("AT+HTTPPARA=\"REDIR\",1\r"));
-					_readSerial();
-					if (_buffer.indexOf(F("OK")) != -1) {
-						gsm.print(F("AT+HTTPSSL=1\r"));
-						_readSerial();
-						if (_buffer.indexOf(F("OK")) != -1) {
-							gsm.print(F("AT+HTTPACTION=0\r"));
-							_readSerial();
-							if (_buffer.indexOf(F("OK")) != -1) {
-								_readSerial(30000);
-								if (_buffer.indexOf(F("+HTTPACTION: 0,")) != -1) {
-									String kod = _buffer.substring(_buffer.indexOf(F(","))+1, _buffer.lastIndexOf(F(",")));
-									String uzunluk = _buffer.substring(_buffer.lastIndexOf(F(","))+1);
-
-									String sonuc = "METHOD:GET|HTTPCODE:";
-									sonuc += kod;
-									sonuc += "|LENGTH:";
-									sonuc += uzunluk;
-
-									// Bağlantıyı kapat!
-									gsm.print(F("AT+HTTPTERM\r"));
-									_readSerial();
-
-									sonuc.trim();
-
-									return sonuc;
-								}
-								else {
-									return "HTTP_ACTION_READ_ERROR";
-								}
-							}
-							else {
-								return "HTTP_ACTION_ERROR";
-							}
-						} else {
-							return "HTTP_SSL_ERROR";
-						}
-					} else {
-						return "HTTP_PARAMETER_ERROR";
-					}
-
-					//
-					/*
-					
-					*/
-				}
-				else {
-					return "HTTP_PARAMETER_ERROR";
-				}
-
+				gsm.print(url);
+				get_complete(false,true);
 			}
-			else {
-				return "HTTP_PARAMETER_ERROR";
-			}
+			else return "HTTP_PARAMETER_ERROR";
 		}
 		else {
 			return "HTTP_INIT_ERROR";
@@ -285,7 +184,7 @@ template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url) {
 	}
 }
 // HTTP Get Method with SSL - Return web server response
-template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url, bool read) {
+String GSMSimHTTP::getWithSSL(String url, bool read) {
 	if(read) {
 		if (isConnected()) {
 			// Terminate http connection, if it opened before!
@@ -299,76 +198,8 @@ template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url, bool read) {
 				_readSerial();
 				if (_buffer.indexOf(F("OK")) != -1) {
 					gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-					handle_url(gsm, url);
-					gsm.print(F("\"\r"));
-					_readSerial();
-					if (_buffer.indexOf(F("OK")) != -1) {
-						gsm.print(F("AT+HTTPPARA=\"REDIR\",1\r"));
-						_readSerial();
-						if (_buffer.indexOf(F("OK")) != -1) {
-							gsm.print(F("AT+HTTPSSL=1\r"));
-							_readSerial();
-							if (_buffer.indexOf(F("OK")) != -1) {
-								gsm.print(F("AT+HTTPACTION=0\r"));
-								_readSerial();
-								if (_buffer.indexOf(F("OK")) != -1) {
-									_readSerial(30000);
-									if (_buffer.indexOf(F("+HTTPACTION: 0,")) != -1) {
-										String kod = _buffer.substring(_buffer.indexOf(F(",")) + 1, _buffer.lastIndexOf(F(",")));
-										String uzunluk = _buffer.substring(_buffer.lastIndexOf(F(",")) + 1);
-										kod.trim();
-										uzunluk.trim();
-
-										gsm.print(F("AT+HTTPREAD\r"));
-										_readSerial(30000);
-
-										String okuma = "";
-
-										if (_buffer.indexOf(F("+HTTPREAD:")) != -1) {
-											String kriter = "+HTTPREAD: " + uzunluk;
-											String veri = _buffer.substring(_buffer.indexOf(kriter) + kriter.length(), _buffer.lastIndexOf(F("OK")));
-											okuma = veri;
-										}
-										else {
-											return "ERROR:HTTP_READ_ERROR";
-										}
-
-										String sonuc = "METHOD:GET|HTTPCODE:";
-										sonuc += kod;
-										sonuc += "|LENGTH:";
-										sonuc += uzunluk;
-										sonuc += "|DATA:";
-										okuma.trim();
-										sonuc += okuma;
-
-										gsm.print(F("AT+HTTPTERM\r"));
-										_readSerial();
-
-										sonuc.trim();
-
-										return sonuc;
-									}
-									else {
-										return "ERROR:HTTP_ACTION_READ_ERROR";
-									}
-								}
-								else {
-									return "ERROR:HTTP_ACTION_ERROR";
-								}
-							} else {
-								return "ERROR:HTTP_SSL_ERROR";
-							}
-						} else {
-							return "ERROR:HTTP_PARAMETER_ERROR";
-						}
-						/*
-						
-						*/
-					}
-					else {
-						return "ERROR:HTTP_PARAMETER_ERROR";
-					}
-
+					gsm.print(url);
+					get_complete(true,true);
 				}
 				else {
 					return "ERROR:HTTP_PARAMETER_ERROR";

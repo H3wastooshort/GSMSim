@@ -42,12 +42,11 @@
 #include "GSMSimGPRS.h"
 
 using GSMSimHTTP_URL_callback = void(*)(Stream&);
-using GSMSimHTTP_data_callback = void(*)(Stream&);
+//using GSMSimHTTP_data_callback = void(*)(Stream&);
 
 class GSMSimHTTP : public GSMSimGPRS {
   protected :
-    void handle_url(Stream& s, String url);
-    void handle_url(Stream& s, GSMSimHTTP_URL_callback callback_function);
+  String get_complete(bool read, bool https);
 
   public :
 

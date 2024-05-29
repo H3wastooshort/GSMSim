@@ -123,9 +123,9 @@ void setup() {
   Serial.println(http.getWithSSL("erdemarslan.com/test.php", true));
   delay(1000);
 
-  Serial.print("Get with Callback... ");
+  /*Serial.print("Get with Callback... ");
   Serial.println(http.get(example_url_callback));
-  delay(1000);
+  delay(1000);*/
 
   Serial.print("Post... ");
   Serial.println(http.post("sera.erdemarslan.com/test.php", "name=Erdem&surname=Arslan", "application/x-www-form-urlencoded"));
