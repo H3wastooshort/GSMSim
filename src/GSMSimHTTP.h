@@ -41,10 +41,13 @@
 #include <Arduino.h>
 #include "GSMSimGPRS.h"
 
+using GSMSimHTTP_URL_callback = void(*)(Stream&);
+using GSMSimHTTP_data_callback = void(*)(Stream&);
 
 class GSMSimHTTP : public GSMSimGPRS {
   protected :
-
+    void handle_url(Stream& s, String url);
+    void handle_url(Stream& s, GSMSimHTTP_URL_callback callback_function);
 
   public :
 
@@ -80,21 +83,36 @@ class GSMSimHTTP : public GSMSimGPRS {
     }
 
     // HTTP Get
+
     String get(String url);
-    // HTTP Get
+    String get(GSMSimHTTP_URL_callback url);
+
     String get(String url, bool read);
-    // HTTPS Get
+    String get(GSMSimHTTP_URL_callback url, bool read);
+
     String getWithSSL(String url);
-    // HTTPS Get
+    String getWithSSL(GSMSimHTTP_URL_callback url);
+
     String getWithSSL(String url, bool read);
+    String getWithSSL(GSMSimHTTP_URL_callback url, bool read);
+
     // HTTP Post
     String post(String url, String data, String contentType);
-    // HTTP Post
+    //String post(String url, GSMSimHTTP_data_callback data, String contentType);
+    //String post(GSMSimHTTP_URL_callback url, GSMSimHTTP_data_callback data, String contentType);
+
     String post(String url, String data, String contentType, bool read);
-    // HTTPS Post
+    //String post(String url, GSMSimHTTP_data_callback data, size_t data_len, String contentType, bool read);
+    //String post(GSMSimHTTP_URL_callback url, GSMSimHTTP_data_callback data, size_t data_len, String contentType, bool read);
+
     String postWithSSL(String url, String data, String contentType);
-    // HTTPS Post
+    //String postWithSSL(String url, GSMSimHTTP_data_callback data, size_t data_len, String contentType);
+    //String postWithSSL(GSMSimHTTP_URL_callback url, GSMSimHTTP_data_callback data, size_t data_len, String contentType);
+
     String postWithSSL(String url, String data, String contentType, bool read);
+    //String postWithSSL(String url, GSMSimHTTP_data_callback data, String contentType, bool read);
+    //String postWithSSL(GSMSimHTTP_URL_callback url, GSMSimHTTP_data_callback data, size_t data_len, String contentType, bool read);
+
 
     // PING Komutları
     String ping(String address);

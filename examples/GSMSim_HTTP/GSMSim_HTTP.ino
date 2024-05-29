@@ -4,6 +4,7 @@
  * GSMSim_HTTP.ino
  *
  * By Erdem ARSLAN
+ * and H3
  * Version: v.2.0.1
  *
  * The MIT License (MIT)
@@ -50,23 +51,38 @@
 // You can use any Serial interface. I recommended HardwareSerial. Please use the library with highiest baudrate.
 // In examples, i used HardwareSerial. You can change it anymore.
 
-#define RESET_PIN 10 // you can use any pin.
+#define RESET_PIN 10  // you can use any pin.
 
 static volatile int num = 0;
 
-GSMSimHTTP http(Serial1, RESET_PIN); // GSMSimHTTP inherit from GSMSimGPRS. You can use GSMSim and GSMSimGPRS methods with it.
+GSMSimHTTP http(Serial1, RESET_PIN);  // GSMSimHTTP inherit from GSMSimGPRS. You can use GSMSim and GSMSimGPRS methods with it.
+
+
+// Create an Array of Strings of different Pets
+String cat_str = "Cat", dog_str = "Dog", capybara_str = "Capybara";
+String example_pets[3] = { cat_str, dog_str, capybara_str };
+
+// URL Callbacks allow you to save RAM, by not having to store the entire String
+// Instead, parameters can be appended on-the-fly
+void example_url_callback(Stream& s) {
+  s.print("sera.erdemarslan.com/test.php?calculation=");
+  s.print(9999 - 1234);
+  s.print("&favorite_pet=");
+  String pet = example_pets[random(0, 3)];  //select random pet
+  s.print(pet);
+}
 
 void setup() {
-  Serial1.begin(115200); // If you dont change module baudrate, it comes with auto baudrate.
+  Serial1.begin(115200);  // If you dont change module baudrate, it comes with auto baudrate.
 
-  while(!Serial1) {
-    ; // wait for module for connect.
+  while (!Serial1) {
+    ;  // wait for module for connect.
   }
 
-  Serial.begin(115200); // Serial for debug...
+  Serial.begin(115200);  // Serial for debug...
 
   // Init module...
-  http.init(); // use for init module. Use it if you dont have any valid reason.
+  http.init();  // use for init module. Use it if you dont have any valid reason.
 
   Serial.print("Set Phone Function... ");
   Serial.println(http.setPhoneFunc(1));
@@ -97,14 +113,18 @@ void setup() {
   Serial.print("Get IP Address... ");
   Serial.println(http.getIP());
   delay(1000);
-  
- 
+
+
   Serial.print("Get... ");
   Serial.println(http.get("sera.erdemarslan.com/test.php"));
   delay(1000);
 
   Serial.print("Get with SSL and read returned data... ");
   Serial.println(http.getWithSSL("erdemarslan.com/test.php", true));
+  delay(1000);
+
+  Serial.print("Get with Callback... ");
+  Serial.println(http.get(example_url_callback));
   delay(1000);
 
   Serial.print("Post... ");
@@ -120,20 +140,19 @@ void setup() {
   //delay(1000);
 
   // For other methods please look at readme.txt file.
-
 }
 
 void loop() {
-  
+
   // Use your Serial interface...
-  if(Serial1.available()) {
-      String buffer = "";
-      buffer = Serial1.readString();
-      num = num + 1;
-      Serial.print(num);
-      Serial.print(". ");
-      Serial.println(buffer);
+  if (Serial1.available()) {
+    String buffer = "";
+    buffer = Serial1.readString();
+    num = num + 1;
+    Serial.print(num);
+    Serial.print(". ");
+    Serial.println(buffer);
   }
-  
+
   // put your main code here, to run repeatedly:
 }

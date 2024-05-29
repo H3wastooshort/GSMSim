@@ -39,8 +39,18 @@
 #include "GSMSimHTTP.h"
 #include "GSMSimGPRS.h"
 
+
+//the C++ compiler will select the right function, depending on wether the 2nd argument is a String or a callback function
+void GSMSimHTTP::handle_url(Stream& s, String url) {
+    s.print(url);
+}
+void GSMSimHTTP::handle_url(Stream& s, GSMSimHTTP_URL_callback callback_function) {
+    callback_function(s);
+}
+
+
 // HTTP Get Method - No return web server response
-String GSMSimHTTP::get(String url) {
+template <typename URL_T> String GSMSimHTTP::get(URL_T url) {
 
 	if (isConnected()) {
 		// Terminate http connection, if it opened before! Otherwise method not run correctly.
@@ -54,7 +64,7 @@ String GSMSimHTTP::get(String url) {
 			_readSerial();
 			if (_buffer.indexOf(F("OK")) != -1) {
 				gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-				gsm.print(url);
+				
 				gsm.print("\"\r");
 				_readSerial();
 
@@ -66,7 +76,7 @@ String GSMSimHTTP::get(String url) {
 						if (_buffer.indexOf(F("+HTTPACTION: 0,")) != -1) {
 							String kod = _buffer.substring(_buffer.indexOf(F(","))+1, _buffer.lastIndexOf(F(",")));
 							String uzunluk = _buffer.substring(_buffer.lastIndexOf(F(","))+1);
-
+							handle_url(gsm, url);
 							String sonuc = "METHOD:GET|HTTPCODE:";
 							sonuc += kod;
 							sonuc += "|LENGTH:";
@@ -105,8 +115,9 @@ String GSMSimHTTP::get(String url) {
 		return "GPRS_NOT_CONNECTED";
 	}
 }
+
 // HTTP Get Method - Return web server response
-String GSMSimHTTP::get(String url, bool read) {
+template <typename URL_T>  String GSMSimHTTP::get(URL_T url, bool read) {
 	if(read) {
 		if (isConnected()) {
 			// Terminate http connection, if it opened before!
@@ -120,7 +131,7 @@ String GSMSimHTTP::get(String url, bool read) {
 				_readSerial();
 				if (_buffer.indexOf(F("OK")) != -1) {
 					gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-					gsm.print(url);
+					handle_url(gsm, url);
 					gsm.print(F("\"\r"));
 					_readSerial();
 					if (_buffer.indexOf(F("OK")) != -1) {
@@ -191,8 +202,9 @@ String GSMSimHTTP::get(String url, bool read) {
 		get(url);
 	}	
 }
+
 // HTTP Get Method with SSL - No return web server response
-String GSMSimHTTP::getWithSSL(String url) {
+template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url) {
 	if (isConnected()) {
 		// Terminate http connection, if it opened before! Otherwise method not run correctly.
 		gsm.print(F("AT+HTTPTERM\r"));
@@ -205,7 +217,7 @@ String GSMSimHTTP::getWithSSL(String url) {
 			_readSerial();
 			if (_buffer.indexOf(F("OK")) != -1) {
 				gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-				gsm.print(url);
+				handle_url(gsm, url);
 				gsm.print("\"\r");
 				_readSerial();
 				if (_buffer.indexOf(F("OK")) != -1) {
@@ -273,7 +285,7 @@ String GSMSimHTTP::getWithSSL(String url) {
 	}
 }
 // HTTP Get Method with SSL - Return web server response
-String GSMSimHTTP::getWithSSL(String url, bool read) {
+template <typename URL_T> String GSMSimHTTP::getWithSSL(URL_T url, bool read) {
 	if(read) {
 		if (isConnected()) {
 			// Terminate http connection, if it opened before!
@@ -287,7 +299,7 @@ String GSMSimHTTP::getWithSSL(String url, bool read) {
 				_readSerial();
 				if (_buffer.indexOf(F("OK")) != -1) {
 					gsm.print(F("AT+HTTPPARA=\"URL\",\""));
-					gsm.print(url);
+					handle_url(gsm, url);
 					gsm.print(F("\"\r"));
 					_readSerial();
 					if (_buffer.indexOf(F("OK")) != -1) {
